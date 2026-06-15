@@ -1,0 +1,326 @@
+{% extends "base.html" %}
+{% block title %}Segmentos & Campanhas — Essentia Rewards Hub{% endblock %}
+
+{% block content %}
+<div style="margin-bottom:1.5rem">
+  <h1 style="font-size:1.4rem;font-weight:700;margin:0">Segmentos & Campanhas</h1>
+  <p style="color:var(--text-muted);font-size:.83rem;margin:.3rem 0 0">Gerencie segmentos de usuários e ative campanhas automatizadas para maximizar o engajamento e retenção</p>
+</div>
+
+<!-- SEGMENTOS -->
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.8rem">
+  <div style="font-size:1.1rem;font-weight:700">Segmentos de Usuários</div>
+  <button class="btn-purple" onclick="abrirModalSeg()">+ Novo Segmento</button>
+</div>
+
+<!-- Filtros segmento -->
+<div class="card-dark" style="margin-bottom:1rem">
+  <div style="display:flex;flex-wrap:wrap;gap:.75rem;align-items:center">
+    <input id="busca-seg" class="input-dark" placeholder="Nome do segmento..." style="flex:1;min-width:180px">
+    <select id="fil-tipo-seg" class="input-dark">
+      <option value="">Todos</option><option>Manual</option><option>Automático</option>
+    </select>
+    <button class="btn-purple" onclick="loadSegmentos()">🔍 Filtrar</button>
+    <button class="btn-ghost" onclick="limparSeg()">✕ Limpar</button>
+  </div>
+</div>
+
+<!-- Prioritários -->
+<div style="margin-bottom:1rem">
+  <div class="section-title">Segmentos Prioritários</div>
+  <div id="segs-prioritarios" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:.75rem"></div>
+</div>
+
+<!-- Tabela segmentos -->
+<div class="card-dark" style="margin-bottom:2rem">
+  <table class="table-dark-custom">
+    <thead>
+      <tr><th>Nome</th><th>Tipo</th><th>Tamanho</th><th>Critérios</th><th>Campanhas</th><th>Atualizado</th><th>Ações</th></tr>
+    </thead>
+    <tbody id="tbody-segs">
+      <tr class="loading-row"><td colspan="7">Carregando...</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- CAMPANHAS -->
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.8rem">
+  <div style="font-size:1.1rem;font-weight:700">Central de Campanhas</div>
+  <button class="btn-purple" onclick="abrirModalCamp()">+ Nova Campanha</button>
+</div>
+
+<!-- Stats campanhas -->
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem">
+  <div class="card-dark">
+    <div class="section-title">Status das Campanhas</div>
+    <div id="camp-status" style="display:flex;flex-direction:column;gap:.5rem"></div>
+  </div>
+  <div class="card-dark">
+    <div class="section-title">Campanhas por Tipo</div>
+    <div id="camp-tipos" style="display:flex;flex-wrap:wrap;gap:.75rem"></div>
+  </div>
+</div>
+
+<!-- Filtros campanha -->
+<div class="card-dark" style="margin-bottom:1rem">
+  <div style="display:flex;flex-wrap:wrap;gap:.75rem;align-items:center">
+    <select id="fil-status-camp" class="input-dark">
+      <option value="">Todos os status</option>
+      <option>Rascunho</option><option>Agendada</option><option>Ativa</option>
+      <option>Pausada</option><option>Encerrada</option>
+    </select>
+    <select id="fil-tipo-camp" class="input-dark">
+      <option value="">Todos os tipos</option>
+      <option>Engajamento</option><option>Retenção</option><option>Recuperação</option>
+      <option>Upgrade</option><option>Ativação</option>
+    </select>
+    <button class="btn-purple" onclick="loadCampanhas()">🔍 Filtrar</button>
+  </div>
+</div>
+
+<!-- Tabela campanhas -->
+<div class="card-dark">
+  <table class="table-dark-custom">
+    <thead>
+      <tr><th>Nome</th><th>Tipo</th><th>Status</th><th>Reward</th><th>Segmento</th><th>Vigência</th><th>Usuários</th><th>Engajamento</th><th>Ações</th></tr>
+    </thead>
+    <tbody id="tbody-camps">
+      <tr class="loading-row"><td colspan="9">Carregando...</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- Modal Segmento -->
+<div class="modal-dark" id="modal-seg">
+  <div class="modal-box">
+    <div class="modal-title">Novo Segmento</div>
+    <div style="display:grid;gap:.8rem">
+      <div><label style="font-size:.78rem;color:var(--text-muted)">Nome *</label><input id="sf-nome" class="input-dark" style="width:100%;margin-top:.3rem" placeholder="Nome do segmento"></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:.8rem">
+        <div><label style="font-size:.78rem;color:var(--text-muted)">Tipo</label>
+          <select id="sf-tipo" class="input-dark" style="width:100%;margin-top:.3rem"><option>Manual</option><option>Automático</option></select></div>
+        <div><label style="font-size:.78rem;color:var(--text-muted)">Prioritário</label>
+          <select id="sf-prior" class="input-dark" style="width:100%;margin-top:.3rem"><option value="0">Não</option><option value="1">Sim</option></select></div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:.8rem">
+        <div><label style="font-size:.78rem;color:var(--text-muted)">Score Mín</label><input id="sf-smin" class="input-dark" type="number" style="width:100%;margin-top:.3rem" placeholder="0"></div>
+        <div><label style="font-size:.78rem;color:var(--text-muted)">Score Máx</label><input id="sf-smax" class="input-dark" type="number" style="width:100%;margin-top:.3rem" placeholder="1000"></div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:.8rem">
+        <div><label style="font-size:.78rem;color:var(--text-muted)">Risco Alvo</label>
+          <select id="sf-risco" class="input-dark" style="width:100%;margin-top:.3rem">
+            <option value="">Todos</option><option>Sem Risco</option><option>Baixo</option><option>Moderado</option><option>Alto</option><option>Crítico</option>
+          </select></div>
+        <div><label style="font-size:.78rem;color:var(--text-muted)">Engajamento Alvo</label>
+          <select id="sf-eng" class="input-dark" style="width:100%;margin-top:.3rem">
+            <option value="">Todos</option><option>Muito Alto</option><option>Alto</option><option>Médio</option><option>Baixo</option><option>Cancelado</option>
+          </select></div>
+      </div>
+      <div><label style="font-size:.78rem;color:var(--text-muted)">Critérios / Descrição</label><textarea id="sf-criterios" class="input-dark" style="width:100%;margin-top:.3rem;min-height:70px;resize:vertical" placeholder="Descreva os critérios..."></textarea></div>
+    </div>
+    <div style="display:flex;gap:.75rem;margin-top:1.5rem;justify-content:flex-end">
+      <button class="btn-ghost" onclick="fecharModalSeg()">Cancelar</button>
+      <button class="btn-purple" onclick="salvarSegmento()">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Campanha -->
+<div class="modal-dark" id="modal-camp">
+  <div class="modal-box">
+    <div class="modal-title">Nova Campanha</div>
+    <div style="display:grid;gap:.8rem">
+      <div><label style="font-size:.78rem;color:var(--text-muted)">Nome *</label><input id="cf-nome" class="input-dark" style="width:100%;margin-top:.3rem" placeholder="Nome da campanha"></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:.8rem">
+        <div><label style="font-size:.78rem;color:var(--text-muted)">Tipo</label>
+          <select id="cf-tipo" class="input-dark" style="width:100%;margin-top:.3rem">
+            <option>Engajamento</option><option>Retenção</option><option>Recuperação</option><option>Upgrade</option><option>Ativação</option>
+          </select></div>
+        <div><label style="font-size:.78rem;color:var(--text-muted)">Status</label>
+          <select id="cf-status" class="input-dark" style="width:100%;margin-top:.3rem">
+            <option>Rascunho</option><option>Agendada</option><option>Ativa</option><option>Pausada</option>
+          </select></div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:.8rem">
+        <div><label style="font-size:.78rem;color:var(--text-muted)">Segmento</label>
+          <select id="cf-seg" class="input-dark" style="width:100%;margin-top:.3rem"><option value="">Nenhum</option></select></div>
+        <div><label style="font-size:.78rem;color:var(--text-muted)">Reward</label>
+          <select id="cf-reward" class="input-dark" style="width:100%;margin-top:.3rem"><option value="">Nenhum</option></select></div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:.8rem">
+        <div><label style="font-size:.78rem;color:var(--text-muted)">Início</label><input id="cf-ini" class="input-dark" type="date" style="width:100%;margin-top:.3rem"></div>
+        <div><label style="font-size:.78rem;color:var(--text-muted)">Fim</label><input id="cf-fim" class="input-dark" type="date" style="width:100%;margin-top:.3rem"></div>
+      </div>
+    </div>
+    <div style="display:flex;gap:.75rem;margin-top:1.5rem;justify-content:flex-end">
+      <button class="btn-ghost" onclick="fecharModalCamp()">Cancelar</button>
+      <button class="btn-purple" onclick="salvarCampanha()">Salvar</button>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+const iconsTipo = {Engajamento:'🎯',Retenção:'🤝',Recuperação:'🔄',Upgrade:'⬆️',Ativação:'⚡'};
+
+async function loadSegmentos() {
+  const nome = document.getElementById('busca-seg').value;
+  const tipo = document.getElementById('fil-tipo-seg').value;
+  const data = await fetch(`/api/segmentos?nome=${nome}&tipo=${tipo}`).then(r => r.json());
+
+  // Prioritários
+  const prior = data.filter(s => s.prioritario);
+  document.getElementById('segs-prioritarios').innerHTML = prior.length
+    ? prior.map(s => `
+        <div class="segment-priority-card">
+          <span style="font-size:1.3rem">⭐</span>
+          <div style="flex:1">
+            <div style="font-weight:600;font-size:.9rem">${s.nome}</div>
+          </div>
+          <span class="seg-count">${fmt(s.tamanho)}</span>
+        </div>`).join('')
+    : '<div style="color:var(--text-muted);font-size:.83rem">Nenhum segmento prioritário</div>';
+
+  // Tabela
+  document.getElementById('tbody-segs').innerHTML = data.length
+    ? data.map(s => `
+        <tr>
+          <td><strong>${s.nome}</strong>${s.prioritario ? ' ⭐' : ''}</td>
+          <td>${s.tipo}</td>
+          <td><strong>${fmt(s.tamanho)}</strong></td>
+          <td style="color:var(--text-muted);font-size:.8rem;max-width:200px;overflow:hidden;text-overflow:ellipsis">${s.criterios||'—'}</td>
+          <td>—</td>
+          <td style="color:var(--text-muted)">${s.atualizado_em}</td>
+          <td>
+            <button class="btn-icon" onclick="deletarSegmento(${s.id},'${s.nome}')" title="Excluir">🗑️</button>
+          </td>
+        </tr>`).join('')
+    : '<tr class="loading-row"><td colspan="7">Nenhum segmento encontrado</td></tr>';
+}
+
+async function loadCampanhas() {
+  const status = document.getElementById('fil-status-camp').value;
+  const tipo = document.getElementById('fil-tipo-camp').value;
+  const data = await fetch(`/api/campanhas?status=${status}&tipo=${tipo}`).then(r => r.json());
+
+  document.getElementById('tbody-camps').innerHTML = data.length
+    ? data.map(c => `
+        <tr>
+          <td><strong>${c.nome}</strong></td>
+          <td>${iconsTipo[c.tipo]||''} ${c.tipo}</td>
+          <td>${badgeStatus(c.status)}</td>
+          <td style="color:var(--text-muted)">${c.reward}</td>
+          <td>${c.segmento}</td>
+          <td style="font-size:.8rem;color:var(--text-muted)">${c.vigencia_inicio} – ${c.vigencia_fim}</td>
+          <td>${fmt(c.usuarios_alcancados)}</td>
+          <td>
+            <div style="display:flex;align-items:center;gap:.4rem">
+              <div class="progress-dark" style="width:60px">
+                <div class="progress-dark-bar" style="width:${c.engajamento_pct}%;background:var(--accent-purple)"></div>
+              </div>
+              <span style="font-size:.78rem">${c.engajamento_pct}%</span>
+            </div>
+          </td>
+          <td>
+            <button class="btn-icon" onclick="deletarCampanha(${c.id},'${c.nome}')" title="Excluir">🗑️</button>
+          </td>
+        </tr>`).join('')
+    : '<tr class="loading-row"><td colspan="9">Nenhuma campanha encontrada</td></tr>';
+}
+
+async function loadStatsCamp() {
+  const s = await fetch('/api/campanhas/stats').then(r => r.json());
+  const statusColors = {Rascunho:'#9ca3af',Agendada:'#60a5fa',Ativa:'#34d399',Pausada:'#fbbf24',Encerrada:'#f87171'};
+  document.getElementById('camp-status').innerHTML = Object.entries(s.por_status).map(([k,v]) => `
+    <div style="display:flex;justify-content:space-between;align-items:center;font-size:.83rem">
+      <span><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${statusColors[k]};margin-right:.4rem"></span>${k}</span>
+      <span style="font-weight:700">${v}</span>
+    </div>`).join('');
+
+  document.getElementById('camp-tipos').innerHTML = Object.entries(s.por_tipo).map(([k,v]) => `
+    <div class="card-dark2" style="text-align:center;min-width:80px">
+      <div style="font-size:1.2rem">${iconsTipo[k]||'📋'}</div>
+      <div style="font-size:1.1rem;font-weight:700">${v}</div>
+      <div style="font-size:.7rem;color:var(--text-muted)">${k}</div>
+    </div>`).join('');
+}
+
+async function popularSelects() {
+  const segs = await fetch('/api/segmentos').then(r => r.json());
+  const rewards = await fetch('/api/rewards').then(r => r.json());
+  const selSeg = document.getElementById('cf-seg');
+  const selRew = document.getElementById('cf-reward');
+  segs.forEach(s => { const o = new Option(s.nome, s.id); selSeg.appendChild(o); });
+  rewards.forEach(r => { const o = new Option(r.nome, r.id); selRew.appendChild(o); });
+}
+
+function abrirModalSeg() { document.getElementById('modal-seg').classList.add('open'); }
+function fecharModalSeg() { document.getElementById('modal-seg').classList.remove('open'); }
+function abrirModalCamp() { popularSelects(); document.getElementById('modal-camp').classList.add('open'); }
+function fecharModalCamp() { document.getElementById('modal-camp').classList.remove('open'); }
+
+async function salvarSegmento() {
+  const nome = document.getElementById('sf-nome').value;
+  if (!nome) { alert('Nome é obrigatório'); return; }
+  await fetch('/api/segmentos', {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({
+      nome, tipo: document.getElementById('sf-tipo').value,
+      prioritario: document.getElementById('sf-prior').value === '1',
+      score_min: parseInt(document.getElementById('sf-smin').value)||null,
+      score_max: parseInt(document.getElementById('sf-smax').value)||null,
+      risco_alvo: document.getElementById('sf-risco').value,
+      engajamento_alvo: document.getElementById('sf-eng').value,
+      criterios: document.getElementById('sf-criterios').value,
+    })
+  });
+  fecharModalSeg();
+  loadSegmentos();
+}
+
+async function salvarCampanha() {
+  const nome = document.getElementById('cf-nome').value;
+  if (!nome) { alert('Nome é obrigatório'); return; }
+  await fetch('/api/campanhas', {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({
+      nome, tipo: document.getElementById('cf-tipo').value,
+      status: document.getElementById('cf-status').value,
+      segmento_id: document.getElementById('cf-seg').value || null,
+      reward_id: document.getElementById('cf-reward').value || null,
+      vigencia_inicio: document.getElementById('cf-ini').value || null,
+      vigencia_fim: document.getElementById('cf-fim').value || null,
+    })
+  });
+  fecharModalCamp();
+  loadCampanhas();
+  loadStatsCamp();
+}
+
+async function deletarSegmento(id, nome) {
+  if (!confirm(`Excluir segmento "${nome}"?`)) return;
+  await fetch('/api/segmentos/' + id, { method: 'DELETE' });
+  loadSegmentos();
+}
+
+async function deletarCampanha(id, nome) {
+  if (!confirm(`Excluir campanha "${nome}"?`)) return;
+  await fetch('/api/campanhas/' + id, { method: 'DELETE' });
+  loadCampanhas();
+  loadStatsCamp();
+}
+
+function limparSeg() {
+  document.getElementById('busca-seg').value = '';
+  document.getElementById('fil-tipo-seg').value = '';
+  loadSegmentos();
+}
+
+loadSegmentos();
+loadCampanhas();
+loadStatsCamp();
+</script>
+{% endblock %}

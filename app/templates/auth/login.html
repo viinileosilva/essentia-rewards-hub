@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Login — Essentia Rewards Hub</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body class="login-body">
+
+<div class="login-container">
+  <div class="login-card">
+
+    <div style="text-align:center;margin-bottom:2rem">
+      <div style="font-size:2rem;margin-bottom:.5rem">⚡</div>
+      <div style="font-size:1.3rem;font-weight:700;color:var(--text-primary)">
+        Essentia <span style="color:var(--accent-purple-light)">Rewards Hub</span>
+      </div>
+      <div style="font-size:.8rem;color:var(--text-muted);margin-top:.3rem">Acesse sua conta</div>
+    </div>
+
+    {% if erro %}
+    <div class="alert-error">{{ erro }}</div>
+    {% endif %}
+
+    <form method="POST" action="/login">
+      <div class="form-group">
+        <label class="form-label">E-mail</label>
+        <input
+          type="email"
+          name="email"
+          class="input-dark"
+          style="width:100%"
+          placeholder="seu@email.com"
+          required
+          autofocus
+        >
+      </div>
+
+      <div class="form-group" style="margin-top:1rem">
+        <label class="form-label">Senha</label>
+        <input
+          type="password"
+          name="senha"
+          class="input-dark"
+          style="width:100%"
+          placeholder="••••••••"
+          required
+        >
+      </div>
+
+      <button type="submit" class="btn-purple" style="width:100%;justify-content:center;margin-top:1.5rem;padding:.65rem">
+        Entrar
+      </button>
+    </form>
+
+    <div style="margin-top:1.5rem;padding-top:1.2rem;border-top:1px solid var(--border)">
+      <div style="font-size:.75rem;color:var(--text-muted);text-align:center">Contas de acesso padrão (seed)</div>
+      <div style="margin-top:.8rem;display:flex;flex-direction:column;gap:.4rem;font-size:.76rem">
+        <div class="login-hint">
+          <span class="badge-role badge-admin">Admin</span>
+          <span style="color:var(--text-muted)">admin@essentia.com</span>
+          <span style="color:var(--border)">|</span>
+          <span style="color:var(--text-muted)">admin123</span>
+        </div>
+        <div class="login-hint">
+          <span class="badge-role badge-b2b">B2B</span>
+          <span style="color:var(--text-muted)">gestor@essentia.com</span>
+          <span style="color:var(--border)">|</span>
+          <span style="color:var(--text-muted)">gestor123</span>
+        </div>
+        <div class="login-hint">
+          <span class="badge-role badge-b2c">B2C</span>
+          <span style="color:var(--text-muted)">maria.almeida@email.com</span>
+          <span style="color:var(--border)">|</span>
+          <span style="color:var(--text-muted)">cliente123</span>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+</body>
+</html>

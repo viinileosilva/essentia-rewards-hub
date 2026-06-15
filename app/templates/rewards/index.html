@@ -1,0 +1,194 @@
+{% extends "base.html" %}
+{% block title %}Catálogo de Rewards — Essentia Rewards Hub{% endblock %}
+
+{% block content %}
+<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:1.5rem">
+  <div>
+    <h1 style="font-size:1.4rem;font-weight:700;margin:0">Catálogo de Rewards</h1>
+    <p style="color:var(--text-muted);font-size:.83rem;margin:.3rem 0 0">Gerencie benefícios, cashbacks e trocas de pontos</p>
+  </div>
+  <button class="btn-purple" onclick="abrirModal()">+ Novo Reward</button>
+</div>
+
+<!-- Contadores por tipo -->
+<div style="display:grid;grid-template-columns:repeat(5,1fr);gap:1rem;margin-bottom:1.5rem" id="tipo-cards">
+  <div class="kpi-card" style="text-align:center"><div style="font-size:1.5rem">🎁</div><div class="kpi-value" id="cnt-beneficio">0</div><div class="kpi-label">Benefício</div></div>
+  <div class="kpi-card" style="text-align:center"><div style="font-size:1.5rem">💵</div><div class="kpi-value" id="cnt-cashback">0</div><div class="kpi-label">Cashback</div></div>
+  <div class="kpi-card" style="text-align:center"><div style="font-size:1.5rem">🔧</div><div class="kpi-value" id="cnt-servico">0</div><div class="kpi-label">Troca por Serviço</div></div>
+  <div class="kpi-card" style="text-align:center"><div style="font-size:1.5rem">📋</div><div class="kpi-value" id="cnt-assinatura">0</div><div class="kpi-label">Troca por Assinatura</div></div>
+  <div class="kpi-card" style="text-align:center"><div style="font-size:1.5rem">🏷️</div><div class="kpi-value" id="cnt-cupom">0</div><div class="kpi-label">Cupom/Desconto</div></div>
+</div>
+
+<!-- Charts + integração -->
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1.5rem">
+  <div class="card-dark">
+    <div class="section-title">Distribuição por Tipo</div>
+    <div class="chart-wrap" style="height:180px"><canvas id="chart-tipos"></canvas></div>
+  </div>
+  <div class="card-dark">
+    <div class="section-title">Status da Integração — Rewards</div>
+    <div style="display:flex;align-items:center;gap:.5rem;margin-bottom:.8rem">
+      <span style="width:10px;height:10px;border-radius:50%;background:var(--accent-green);display:inline-block"></span>
+      <span style="font-weight:600">Operacional</span>
+      <span style="color:var(--text-muted);font-size:.78rem;margin-left:auto">Última sincronização: agora</span>
+    </div>
+    <div style="background:#1a3a1a;border:1px solid #2a5a2a;border-radius:6px;padding:.8rem;font-size:.82rem;color:#6ee7b7">
+      Os dados de resgate são atualizados automaticamente a cada 15 minutos.
+    </div>
+  </div>
+</div>
+
+<!-- Filtros -->
+<div class="card-dark" style="margin-bottom:1rem">
+  <div style="display:flex;flex-wrap:wrap;gap:.75rem;align-items:center">
+    <input id="busca-rw" class="input-dark" placeholder="Nome do reward..." style="flex:1;min-width:180px">
+    <select id="fil-tipo-rw" class="input-dark">
+      <option value="">Todos os tipos</option>
+      <option>Benefício</option><option>Cashback</option><option>Troca por Serviço</option>
+      <option>Troca por Assinatura</option><option>Cupom/Desconto</option>
+    </select>
+    <select id="fil-status-rw" class="input-dark">
+      <option value="">Todos os status</option>
+      <option>Ativo</option><option>Inativo</option>
+    </select>
+    <input id="fil-parceiro-rw" class="input-dark" placeholder="Parceiro..." style="width:140px">
+    <button class="btn-purple" onclick="loadRewards()">🔍 Filtrar</button>
+    <button class="btn-ghost" onclick="limparFiltros()">✕ Limpar</button>
+  </div>
+</div>
+
+<!-- Tabela -->
+<div class="card-dark">
+  <table class="table-dark-custom">
+    <thead>
+      <tr><th>Nome</th><th>Tipo</th><th>Status</th><th>Custo/Cashback</th><th>Parceiro</th><th>Campanhas</th><th>Resgates</th><th>Ações</th></tr>
+    </thead>
+    <tbody id="tbody-rewards">
+      <tr class="loading-row"><td colspan="8">Carregando...</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- Modal -->
+<div class="modal-dark" id="modal-reward">
+  <div class="modal-box">
+    <div class="modal-title" id="modal-titulo">Novo Reward</div>
+    <input type="hidden" id="edit-id">
+    <div style="display:grid;gap:.8rem">
+      <div><label style="font-size:.78rem;color:var(--text-muted)">Nome *</label><input id="rf-nome" class="input-dark" style="width:100%;margin-top:.3rem" placeholder="Nome do reward"></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:.8rem">
+        <div><label style="font-size:.78rem;color:var(--text-muted)">Tipo *</label>
+          <select id="rf-tipo" class="input-dark" style="width:100%;margin-top:.3rem">
+            <option>Benefício</option><option>Cashback</option><option>Troca por Serviço</option>
+            <option>Troca por Assinatura</option><option>Cupom/Desconto</option>
+          </select></div>
+        <div><label style="font-size:.78rem;color:var(--text-muted)">Status</label>
+          <select id="rf-status" class="input-dark" style="width:100%;margin-top:.3rem">
+            <option>Ativo</option><option>Inativo</option>
+          </select></div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:.8rem">
+        <div><label style="font-size:.78rem;color:var(--text-muted)">Custo/Cashback (R$)</label><input id="rf-custo" class="input-dark" type="number" style="width:100%;margin-top:.3rem" placeholder="0.00" step="0.01"></div>
+        <div><label style="font-size:.78rem;color:var(--text-muted)">Parceiro</label><input id="rf-parceiro" class="input-dark" style="width:100%;margin-top:.3rem" placeholder="Nome do parceiro"></div>
+      </div>
+    </div>
+    <div style="display:flex;gap:.75rem;margin-top:1.5rem;justify-content:flex-end">
+      <button class="btn-ghost" onclick="fecharModal()">Cancelar</button>
+      <button class="btn-purple" onclick="salvarReward()">Salvar</button>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+const tipoIcons = {'Benefício':'🎁','Cashback':'💵','Troca por Serviço':'🔧','Troca por Assinatura':'📋','Cupom/Desconto':'🏷️'};
+
+async function loadStats() {
+  const data = await fetch('/api/rewards/stats').then(r => r.json());
+  const ids = {'Benefício':'cnt-beneficio','Cashback':'cnt-cashback','Troca por Serviço':'cnt-servico','Troca por Assinatura':'cnt-assinatura','Cupom/Desconto':'cnt-cupom'};
+  data.forEach(t => {
+    if (ids[t.tipo]) document.getElementById(ids[t.tipo]).textContent = t.total;
+  });
+  makeDoughnut('chart-tipos', data.map(x=>x.tipo), data.map(x=>x.total));
+}
+
+async function loadRewards() {
+  const nome = document.getElementById('busca-rw').value;
+  const tipo = document.getElementById('fil-tipo-rw').value;
+  const status = document.getElementById('fil-status-rw').value;
+  const parceiro = document.getElementById('fil-parceiro-rw').value;
+  const data = await fetch(`/api/rewards?nome=${nome}&tipo=${tipo}&status=${status}&parceiro=${parceiro}`).then(r => r.json());
+
+  document.getElementById('tbody-rewards').innerHTML = data.length
+    ? data.map(r => `
+        <tr>
+          <td><strong>${r.nome}</strong></td>
+          <td>${tipoIcons[r.tipo]||''} ${r.tipo}</td>
+          <td>${badgeStatus(r.status)}</td>
+          <td>R$ ${fmt(r.custo_cashback)}</td>
+          <td style="color:var(--text-muted)">${r.parceiro||'—'}</td>
+          <td>${fmt(r.campanhas)}</td>
+          <td>${fmt(r.resgates)}</td>
+          <td>
+            <button class="btn-icon" onclick="editarReward(${r.id})" title="Editar">✏️</button>
+            <button class="btn-icon" onclick="deletarReward(${r.id},'${r.nome}')" title="Excluir">🗑️</button>
+          </td>
+        </tr>`).join('')
+    : '<tr class="loading-row"><td colspan="8">Nenhum reward encontrado</td></tr>';
+}
+
+function abrirModal(dados) {
+  document.getElementById('modal-titulo').textContent = dados ? 'Editar Reward' : 'Novo Reward';
+  document.getElementById('edit-id').value = dados?.id || '';
+  document.getElementById('rf-nome').value = dados?.nome || '';
+  document.getElementById('rf-tipo').value = dados?.tipo || 'Benefício';
+  document.getElementById('rf-status').value = dados?.status || 'Ativo';
+  document.getElementById('rf-custo').value = dados?.custo_cashback || '';
+  document.getElementById('rf-parceiro').value = dados?.parceiro || '';
+  document.getElementById('modal-reward').classList.add('open');
+}
+function fecharModal() { document.getElementById('modal-reward').classList.remove('open'); }
+
+async function editarReward(id) {
+  const r = await fetch('/api/rewards').then(res => res.json()).then(list => list.find(x => x.id === id));
+  if (r) abrirModal(r);
+}
+
+async function salvarReward() {
+  const id = document.getElementById('edit-id').value;
+  const body = {
+    nome: document.getElementById('rf-nome').value,
+    tipo: document.getElementById('rf-tipo').value,
+    status: document.getElementById('rf-status').value,
+    custo_cashback: parseFloat(document.getElementById('rf-custo').value) || 0,
+    parceiro: document.getElementById('rf-parceiro').value,
+  };
+  if (!body.nome) { alert('Nome é obrigatório'); return; }
+  const url = id ? `/api/rewards/${id}` : '/api/rewards';
+  const method = id ? 'PUT' : 'POST';
+  await fetch(url, { method, headers: {'Content-Type':'application/json'}, body: JSON.stringify(body) });
+  fecharModal();
+  loadRewards();
+  loadStats();
+}
+
+async function deletarReward(id, nome) {
+  if (!confirm(`Excluir reward "${nome}"?`)) return;
+  await fetch('/api/rewards/' + id, { method: 'DELETE' });
+  loadRewards();
+  loadStats();
+}
+
+function limparFiltros() {
+  document.getElementById('busca-rw').value = '';
+  document.getElementById('fil-tipo-rw').value = '';
+  document.getElementById('fil-status-rw').value = '';
+  document.getElementById('fil-parceiro-rw').value = '';
+  loadRewards();
+}
+
+loadStats();
+loadRewards();
+</script>
+{% endblock %}

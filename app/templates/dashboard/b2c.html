@@ -1,0 +1,112 @@
+{% extends "base.html" %}
+{% block title %}Meu Painel — Essentia Rewards Hub{% endblock %}
+
+{% block content %}
+<div style="margin-bottom:1.5rem">
+  <h1 style="font-size:1.4rem;font-weight:700;margin:0">Olá, {{ current_user.nome.split()[0] }} 👋</h1>
+  <p style="color:var(--text-muted);font-size:.83rem;margin:.3rem 0 0">Aqui está um resumo da sua conta e dos seus pontos</p>
+</div>
+
+<div id="sem-vinculo" style="display:none">
+  <div class="card-dark" style="text-align:center;padding:3rem">
+    <div style="font-size:2.5rem;margin-bottom:1rem">🔗</div>
+    <div style="font-weight:600;margin-bottom:.5rem">Perfil não vinculado</div>
+    <div style="color:var(--text-muted);font-size:.85rem">Aguarde o administrador vincular sua conta a um perfil de cliente.</div>
+  </div>
+</div>
+
+<div id="painel-b2c" style="display:none">
+
+  <!-- KPIs -->
+  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:1rem;margin-bottom:1.5rem">
+    <div class="kpi-card">
+      <div class="kpi-label">💰 Saldo de Pontos</div>
+      <div class="kpi-value purple" id="b2c-pontos">—</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-label">📊 Score Comportamental</div>
+      <div class="kpi-value" id="b2c-score">—</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-label">🏷️ Faixa</div>
+      <div class="kpi-value" id="b2c-faixa" style="font-size:1.2rem">—</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-label">📋 Plano Atual</div>
+      <div class="kpi-value" id="b2c-plano" style="font-size:1.2rem">—</div>
+    </div>
+  </div>
+
+  <!-- Eventos + Rewards -->
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem">
+
+    <div class="card-dark">
+      <div class="section-title">Últimas Atividades</div>
+      <div id="b2c-eventos">
+        <div class="loading-row" style="padding:1.5rem;text-align:center;color:var(--text-muted)">Carregando...</div>
+      </div>
+    </div>
+
+    <div class="card-dark">
+      <div class="section-title">Rewards Disponíveis</div>
+      <div id="b2c-rewards">
+        <div class="loading-row" style="padding:1.5rem;text-align:center;color:var(--text-muted)">Carregando...</div>
+      </div>
+    </div>
+
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+const tipoIcons = {'Benefício':'🎁','Cashback':'💵','Troca por Serviço':'🔧','Troca por Assinatura':'📋','Cupom/Desconto':'🏷️'};
+
+async function loadPerfil() {
+  const res = await fetch('/api/meu-perfil');
+  if (res.status === 404) {
+    document.getElementById('sem-vinculo').style.display = '';
+    return;
+  }
+  const u = await res.json();
+  document.getElementById('painel-b2c').style.display = '';
+
+  document.getElementById('b2c-pontos').textContent = fmtR(u.pontos);
+  document.getElementById('b2c-score').textContent  = fmt(u.score);
+  document.getElementById('b2c-faixa').innerHTML    = badgeFaixa(u.faixa);
+  document.getElementById('b2c-plano').textContent  = u.plano;
+
+  const eventos = u.eventos || [];
+  document.getElementById('b2c-eventos').innerHTML = eventos.length
+    ? eventos.map(e => `
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:.6rem 0;border-bottom:1px solid var(--border)">
+          <div>
+            <div style="font-size:.85rem;font-weight:500">${e.tipo}</div>
+            <div style="font-size:.73rem;color:var(--text-muted)">${e.data}</div>
+          </div>
+          ${e.valor ? `<div style="font-weight:600;color:var(--accent-green)">${fmtR(e.valor)}</div>` : ''}
+        </div>`).join('')
+    : '<div style="color:var(--text-muted);font-size:.83rem">Nenhuma atividade registrada</div>';
+}
+
+async function loadRewards() {
+  const rewards = await fetch('/api/meu-perfil/rewards').then(r => r.json());
+  document.getElementById('b2c-rewards').innerHTML = rewards.length
+    ? rewards.slice(0, 6).map(r => `
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:.6rem 0;border-bottom:1px solid var(--border)">
+          <div style="display:flex;align-items:center;gap:.6rem">
+            <span style="font-size:1.1rem">${tipoIcons[r.tipo]||'🎁'}</span>
+            <div>
+              <div style="font-size:.85rem;font-weight:500">${r.nome}</div>
+              <div style="font-size:.73rem;color:var(--text-muted)">${r.tipo}</div>
+            </div>
+          </div>
+          <div style="font-size:.8rem;color:var(--accent-purple-light);font-weight:600">R$ ${fmt(r.custo_cashback)}</div>
+        </div>`).join('')
+    : '<div style="color:var(--text-muted);font-size:.83rem">Nenhum reward disponível</div>';
+}
+
+loadPerfil();
+loadRewards();
+</script>
+{% endblock %}

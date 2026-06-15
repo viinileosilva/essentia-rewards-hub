@@ -1,0 +1,186 @@
+{% extends "base.html" %}
+{% block title %}Risco de Atraso — Essentia Rewards Hub{% endblock %}
+
+{% block content %}
+<div style="margin-bottom:1.5rem">
+  <h1 style="font-size:1.4rem;font-weight:700;margin:0">Monitor de Previsão de Atraso</h1>
+  <p style="color:var(--text-muted);font-size:.83rem;margin:.3rem 0 0">Acompanhe os usuários com maior chance de atraso e tome ações preventivas</p>
+</div>
+
+<!-- Filtros -->
+<div class="card-dark" style="margin-bottom:1rem">
+  <div style="display:flex;flex-wrap:wrap;gap:.75rem;align-items:center">
+    <select id="fil-nivel" class="input-dark">
+      <option value="">Todos os níveis</option>
+      <option>Baixo</option><option>Moderado</option><option>Alto</option><option>Crítico</option>
+    </select>
+    <select id="fil-plano" class="input-dark">
+      <option value="">Todos os planos</option>
+      <option>Plano Básico</option><option>Plano Standard</option>
+      <option>Plano Gold</option><option>Plano Premium</option>
+    </select>
+    <button class="btn-purple" onclick="loadRisco(1)">🔍 Filtrar</button>
+    <button class="btn-ghost" onclick="limparFiltros()">✕ Limpar</button>
+  </div>
+</div>
+
+<!-- KPIs -->
+<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:1rem;margin-bottom:1rem">
+  <div class="kpi-card">
+    <div class="kpi-label">👥 Usuários em Risco</div>
+    <div class="kpi-value red" id="kpi-total">—</div>
+  </div>
+  <div class="kpi-card">
+    <div class="kpi-label">💰 Valor Total em Risco</div>
+    <div class="kpi-value" id="kpi-valor">—</div>
+  </div>
+  <div class="kpi-card">
+    <div class="kpi-label">🚨 Atenção Imediata (Crítico)</div>
+    <div class="kpi-value red" id="kpi-critico">—</div>
+  </div>
+  <div class="kpi-card">
+    <div class="kpi-label">👁️ Monitoramento Ativo (Alto)</div>
+    <div class="kpi-value yellow" id="kpi-alto" style="color:var(--accent-yellow)">—</div>
+  </div>
+</div>
+
+<!-- Charts -->
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem">
+  <div class="card-dark">
+    <div class="section-title">Distribuição por Categoria</div>
+    <div class="chart-wrap"><canvas id="chart-cat"></canvas></div>
+  </div>
+  <div class="card-dark">
+    <div class="section-title">Risco por Produto/Plano</div>
+    <div class="chart-wrap"><canvas id="chart-plano"></canvas></div>
+  </div>
+</div>
+
+<!-- Usuários em risco + Top críticos -->
+<div style="display:grid;grid-template-columns:2fr 1fr;gap:1rem">
+  <div>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.8rem">
+      <div class="section-title" style="margin:0">Usuários em Risco — <span id="total-label" style="color:var(--text-muted)"></span></div>
+    </div>
+    <div id="cards-risco" style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem"></div>
+    <div style="display:flex;justify-content:center;margin-top:1rem">
+      <div class="pagination-dark" id="paginacao"></div>
+    </div>
+  </div>
+
+  <div>
+    <div class="card-dark" style="margin-bottom:1rem">
+      <div class="section-title">🔴 Top 10 Mais Críticos</div>
+      <div id="lista-criticos"></div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+let paginaAtual = 1;
+
+const corRisco = {
+  'Baixo':'#3b82f6','Moderado':'#f59e0b','Alto':'#f97316','Crítico':'#ef4444'
+};
+const bgRisco = {
+  'Baixo':'#1e3a5f','Moderado':'#2d2a1e','Alto':'#3a2a1e','Crítico':'#3a1a1a'
+};
+
+async function loadKpis() {
+  const k = await fetch('/api/risco/kpis').then(r => r.json());
+  document.getElementById('kpi-total').textContent = fmt(k.total_em_risco);
+  document.getElementById('kpi-valor').textContent = fmtR(k.valor_total);
+  document.getElementById('kpi-critico').textContent = fmt(k.atencao_imediata);
+  document.getElementById('kpi-alto').textContent = fmt(k.monitoramento_ativo);
+}
+
+async function loadCharts() {
+  const cat = await fetch('/api/risco/distribuicao-categoria').then(r => r.json());
+  makeBarChart('chart-cat', cat.map(x=>x.nivel), cat.map(x=>x.total),
+    ['#3b82f6','#f59e0b','#f97316','#ef4444']);
+
+  const plano = await fetch('/api/risco/por-plano').then(r => r.json());
+  makeHBarChart('chart-plano', plano.map(x=>x.plano), plano.map(x=>x.total),
+    ['#7c3aed','#3b82f6','#10b981','#f59e0b']);
+}
+
+async function loadRisco(page = 1) {
+  paginaAtual = page;
+  const nivel = document.getElementById('fil-nivel').value;
+  const plano = document.getElementById('fil-plano').value;
+  const params = new URLSearchParams({nivel, plano, page, per_page: 10});
+  const data = await fetch('/api/risco/usuarios?' + params).then(r => r.json());
+
+  document.getElementById('total-label').textContent = fmt(data.total) + ' usuários';
+
+  const container = document.getElementById('cards-risco');
+  container.innerHTML = data.data.length ? data.data.map(r => `
+    <div class="risk-card">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start">
+        <div>
+          <div style="font-weight:600;font-size:.9rem">${r.usuario}</div>
+          <div style="font-size:.75rem;color:var(--text-muted)">${r.email}</div>
+        </div>
+        <span class="risk-level-badge" style="background:${bgRisco[r.nivel_risco]};color:${corRisco[r.nivel_risco]}">${r.nivel_risco}</span>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:.5rem;margin-top:.8rem">
+        <div><div style="font-size:.7rem;color:var(--text-muted)">Score</div><div style="font-weight:700">${fmt(r.score)}</div></div>
+        <div><div style="font-size:.7rem;color:var(--text-muted)">Valor em Risco</div><div style="font-weight:700;color:var(--accent-red)">${fmtR(r.valor_em_risco)}</div></div>
+        <div><div style="font-size:.7rem;color:var(--text-muted)">Plano</div><div style="font-weight:600;font-size:.82rem">${r.produto_plano}</div></div>
+      </div>
+      <div style="display:flex;gap:.5rem;margin-top:.8rem">
+        <div style="font-size:.72rem;color:var(--text-muted)">⏱ ${r.tempo_cliente} meses de cliente</div>
+        ${r.dias_atraso > 0 ? `<div style="font-size:.72rem;color:var(--accent-red)">• ${r.dias_atraso} dias em atraso</div>` : ''}
+      </div>
+    </div>`).join('')
+    : '<div style="color:var(--text-muted);text-align:center;padding:2rem;grid-column:1/-1">Nenhum usuário em risco encontrado</div>';
+
+  // Paginação
+  const pag = document.getElementById('paginacao');
+  pag.innerHTML = '';
+  if (data.pages > 1) {
+    const addBtn = (label, pg, disabled) => {
+      const btn = document.createElement('button');
+      btn.className = 'page-btn' + (pg === paginaAtual ? ' active' : '');
+      btn.textContent = label;
+      btn.disabled = disabled;
+      btn.onclick = () => loadRisco(pg);
+      pag.appendChild(btn);
+    };
+    addBtn('‹', page - 1, page === 1);
+    for (let i = Math.max(1, page-2); i <= Math.min(data.pages, page+2); i++) addBtn(i, i, false);
+    addBtn('›', page + 1, page === data.pages);
+  }
+}
+
+async function loadCriticos() {
+  const top = await fetch('/api/risco/top-criticos').then(r => r.json());
+  document.getElementById('lista-criticos').innerHTML = top.length
+    ? top.map((r, i) => `
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:.6rem 0;border-bottom:1px solid var(--border)">
+          <div>
+            <div style="font-size:.85rem;font-weight:600">${r.usuario}</div>
+            <div style="font-size:.72rem;color:var(--text-muted)">${r.produto_plano}</div>
+          </div>
+          <div style="text-align:right">
+            <div style="font-size:.85rem;font-weight:700;color:var(--accent-red)">${fmtR(r.valor_em_risco)}</div>
+            <div style="font-size:.7rem;color:var(--text-muted)">Score: ${fmt(r.score)}</div>
+          </div>
+        </div>`).join('')
+    : '<div style="color:var(--text-muted);font-size:.83rem">Nenhum crítico no momento</div>';
+}
+
+function limparFiltros() {
+  document.getElementById('fil-nivel').value = '';
+  document.getElementById('fil-plano').value = '';
+  loadRisco(1);
+}
+
+loadKpis();
+loadCharts();
+loadRisco(1);
+loadCriticos();
+</script>
+{% endblock %}

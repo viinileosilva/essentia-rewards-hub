@@ -1,0 +1,204 @@
+{% extends "base.html" %}
+{% block title %}Gerenciar Contas — Essentia Rewards Hub{% endblock %}
+
+{% block content %}
+<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:1.5rem">
+  <div>
+    <h1 style="font-size:1.4rem;font-weight:700;margin:0">Gerenciar Contas de Acesso</h1>
+    <p style="color:var(--text-muted);font-size:.83rem;margin:.3rem 0 0">Crie e gerencie os usuários que acessam a plataforma</p>
+  </div>
+  <button class="btn-purple" onclick="abrirModal()">+ Nova Conta</button>
+</div>
+
+<!-- Contadores -->
+<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:1rem;margin-bottom:1.5rem">
+  <div class="kpi-card" style="text-align:center">
+    <div style="font-size:1.5rem">🔑</div>
+    <div class="kpi-value" id="cnt-admin">{{ contas | selectattr('role','eq','Admin') | list | length }}</div>
+    <div class="kpi-label">Admin</div>
+  </div>
+  <div class="kpi-card" style="text-align:center">
+    <div style="font-size:1.5rem">🏢</div>
+    <div class="kpi-value" id="cnt-b2b">{{ contas | selectattr('role','eq','B2B') | list | length }}</div>
+    <div class="kpi-label">B2B</div>
+  </div>
+  <div class="kpi-card" style="text-align:center">
+    <div style="font-size:1.5rem">👤</div>
+    <div class="kpi-value" id="cnt-b2c">{{ contas | selectattr('role','eq','B2C') | list | length }}</div>
+    <div class="kpi-label">B2C</div>
+  </div>
+</div>
+
+<!-- Tabela -->
+<div class="card-dark">
+  <table class="table-dark-custom">
+    <thead>
+      <tr><th>Nome</th><th>E-mail</th><th>Perfil</th><th>Empresa</th><th>Usuário Vinculado</th><th>Status</th><th>Criado em</th><th>Ações</th></tr>
+    </thead>
+    <tbody>
+      {% for c in contas %}
+      <tr id="row-{{ c.id }}">
+        <td><strong>{{ c.nome }}</strong></td>
+        <td style="color:var(--text-muted)">{{ c.email }}</td>
+        <td>
+          <span class="badge-role badge-{{ c.role | lower }}">{{ c.role }}</span>
+        </td>
+        <td style="color:var(--text-muted)">{{ c.company or '—' }}</td>
+        <td style="color:var(--text-muted)">
+          {% if c.usuario %}{{ c.usuario.nome }}{% else %}—{% endif %}
+        </td>
+        <td>
+          {% if c.ativo %}
+            <span class="badge-custom badge-ativo">Ativo</span>
+          {% else %}
+            <span class="badge-custom badge-encerrada">Inativo</span>
+          {% endif %}
+        </td>
+        <td style="color:var(--text-muted)">{{ c.criado_em.strftime('%d/%m/%Y') }}</td>
+        <td>
+          <button class="btn-icon" onclick="editarConta({{ c.id }},'{{ c.nome }}','{{ c.email }}','{{ c.role }}','{{ c.company or '' }}',{{ c.ativo|lower }},{{ c.usuario_id or 'null' }})" title="Editar">✏️</button>
+          {% if c.id != current_user.id %}
+          <button class="btn-icon" onclick="deletarConta({{ c.id }},'{{ c.nome }}')" title="Excluir" style="color:var(--accent-red)">🗑️</button>
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<!-- Modal -->
+<div class="modal-dark" id="modal-conta">
+  <div class="modal-box">
+    <div class="modal-title" id="modal-titulo">Nova Conta</div>
+    <input type="hidden" id="edit-id">
+    <div style="display:grid;gap:.8rem">
+      <div>
+        <label class="form-label">Nome *</label>
+        <input id="f-nome" class="input-dark" style="width:100%;margin-top:.3rem" placeholder="Nome completo">
+      </div>
+      <div>
+        <label class="form-label">E-mail *</label>
+        <input id="f-email" class="input-dark" style="width:100%;margin-top:.3rem" placeholder="email@exemplo.com">
+      </div>
+      <div>
+        <label class="form-label">Senha <span id="senha-hint" style="color:var(--text-muted)">(obrigatória para novas contas)</span></label>
+        <input id="f-senha" class="input-dark" type="password" style="width:100%;margin-top:.3rem" placeholder="••••••••">
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:.8rem">
+        <div>
+          <label class="form-label">Perfil</label>
+          <select id="f-role" class="input-dark" style="width:100%;margin-top:.3rem" onchange="toggleCampos()">
+            <option value="Admin">Admin</option>
+            <option value="B2B" selected>B2B</option>
+            <option value="B2C">B2C</option>
+          </select>
+        </div>
+        <div>
+          <label class="form-label">Status</label>
+          <select id="f-ativo" class="input-dark" style="width:100%;margin-top:.3rem">
+            <option value="true">Ativo</option>
+            <option value="false">Inativo</option>
+          </select>
+        </div>
+      </div>
+      <div id="campo-empresa">
+        <label class="form-label">Empresa (B2B)</label>
+        <input id="f-company" class="input-dark" style="width:100%;margin-top:.3rem" placeholder="Nome da empresa">
+      </div>
+      <div id="campo-usuario" style="display:none">
+        <label class="form-label">Vincular a Usuário (B2C)</label>
+        <select id="f-usuario" class="input-dark" style="width:100%;margin-top:.3rem">
+          <option value="">Nenhum</option>
+          {% for u in usuarios %}
+          <option value="{{ u.id }}">{{ u.nome }} — {{ u.email }}</option>
+          {% endfor %}
+        </select>
+      </div>
+    </div>
+    <div style="display:flex;gap:.75rem;margin-top:1.5rem;justify-content:flex-end">
+      <button class="btn-ghost" onclick="fecharModal()">Cancelar</button>
+      <button class="btn-purple" onclick="salvarConta()">Salvar</button>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+function toggleCampos() {
+  const role = document.getElementById('f-role').value;
+  document.getElementById('campo-empresa').style.display = role === 'B2B' ? '' : 'none';
+  document.getElementById('campo-usuario').style.display = role === 'B2C' ? '' : 'none';
+}
+
+function abrirModal(dados) {
+  document.getElementById('modal-titulo').textContent = dados ? 'Editar Conta' : 'Nova Conta';
+  document.getElementById('edit-id').value  = dados?.id || '';
+  document.getElementById('f-nome').value   = dados?.nome || '';
+  document.getElementById('f-email').value  = dados?.email || '';
+  document.getElementById('f-email').disabled = !!dados;
+  document.getElementById('f-senha').value  = '';
+  document.getElementById('senha-hint').textContent = dados ? '(deixe em branco para não alterar)' : '(obrigatória para novas contas)';
+  document.getElementById('f-role').value   = dados?.role || 'B2B';
+  document.getElementById('f-ativo').value  = dados?.ativo !== undefined ? String(dados.ativo) : 'true';
+  document.getElementById('f-company').value = dados?.company || '';
+  document.getElementById('f-usuario').value = dados?.usuario_id || '';
+  toggleCampos();
+  document.getElementById('modal-conta').classList.add('open');
+}
+
+function editarConta(id, nome, email, role, company, ativo, usuario_id) {
+  abrirModal({ id, nome, email, role, company, ativo, usuario_id });
+}
+
+function fecharModal() {
+  document.getElementById('modal-conta').classList.remove('open');
+  document.getElementById('f-email').disabled = false;
+}
+
+async function salvarConta() {
+  const id    = document.getElementById('edit-id').value;
+  const nome  = document.getElementById('f-nome').value.trim();
+  const email = document.getElementById('f-email').value.trim();
+  const senha = document.getElementById('f-senha').value;
+  const role  = document.getElementById('f-role').value;
+
+  if (!nome || (!id && !email)) { alert('Nome e e-mail são obrigatórios'); return; }
+  if (!id && !senha) { alert('Senha obrigatória para novas contas'); return; }
+
+  const body = {
+    nome, role,
+    ativo:      document.getElementById('f-ativo').value === 'true',
+    company:    document.getElementById('f-company').value,
+    usuario_id: document.getElementById('f-usuario').value || null,
+  };
+  if (!id) body.email = email;
+  if (senha) body.senha = senha;
+
+  const url    = id ? `/api/admin/contas/${id}` : '/api/admin/contas';
+  const method = id ? 'PUT' : 'POST';
+  const res    = await fetch(url, { method, headers: {'Content-Type':'application/json'}, body: JSON.stringify(body) });
+
+  if (!res.ok) {
+    const err = await res.json();
+    alert(err.error || 'Erro ao salvar');
+    return;
+  }
+
+  fecharModal();
+  location.reload();
+}
+
+async function deletarConta(id, nome) {
+  if (!confirm(`Excluir a conta de "${nome}"?`)) return;
+  const res = await fetch(`/api/admin/contas/${id}`, { method: 'DELETE' });
+  if (!res.ok) {
+    const err = await res.json();
+    alert(err.error || 'Erro ao excluir');
+    return;
+  }
+  document.getElementById('row-' + id)?.remove();
+}
+</script>
+{% endblock %}

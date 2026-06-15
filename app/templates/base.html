@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}Essentia Rewards Hub{% endblock %}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+  {% block extra_head %}{% endblock %}
+</head>
+<body>
+
+<nav class="navbar">
+  <div style="display:flex;align-items:center;gap:2rem;max-width:1400px;margin:0 auto;width:100%">
+    <a class="navbar-brand" href="/">⚡ Essentia <span>Rewards Hub</span></a>
+
+    <!-- Links de navegação — ocultos para B2C -->
+    {% if current_user.is_authenticated and not current_user.is_b2c %}
+    <div style="display:flex;gap:0;flex:1">
+      <a href="/" class="nav-link {% if request.endpoint == 'dashboard.index' %}active{% endif %}">Dashboard</a>
+      <a href="/usuarios" class="nav-link {% if request.endpoint == 'usuarios.index' %}active{% endif %}">Usuários & Score</a>
+      <a href="/risco" class="nav-link {% if request.endpoint == 'risco.index' %}active{% endif %}">Risco de Atraso</a>
+      <a href="/segmentos" class="nav-link {% if request.endpoint == 'segmentos.index' %}active{% endif %}">Segmentos & Campanhas</a>
+      <a href="/rewards" class="nav-link {% if request.endpoint == 'rewards.index' %}active{% endif %}">Catálogo de Rewards</a>
+      {% if current_user.is_admin %}
+      <a href="/admin/contas" class="nav-link {% if request.endpoint == 'auth.contas' %}active{% endif %}" style="color:var(--accent-purple-light)">⚙ Contas</a>
+      {% endif %}
+    </div>
+    {% elif current_user.is_authenticated and current_user.is_b2c %}
+    <div style="flex:1">
+      <a href="/meu-painel" class="nav-link {% if request.endpoint == 'dashboard.b2c' %}active{% endif %}">Meu Painel</a>
+    </div>
+    {% endif %}
+
+    <!-- Área do usuário logado -->
+    {% if current_user.is_authenticated %}
+    <div style="display:flex;align-items:center;gap:.75rem;margin-left:auto">
+      <span class="badge-role badge-{{ current_user.role | lower }}">{{ current_user.role }}</span>
+      <span style="font-size:.82rem;color:var(--text-muted)">{{ current_user.nome.split()[0] }}</span>
+      <a href="/logout" class="btn-ghost" style="font-size:.78rem;padding:.3rem .7rem">Sair</a>
+    </div>
+    {% endif %}
+  </div>
+</nav>
+
+<div class="main-content">
+  {% block content %}{% endblock %}
+</div>
+
+<script>
+const fmt  = (n) => new Intl.NumberFormat('pt-BR').format(n);
+const fmtR = (n) => 'R$ ' + new Intl.NumberFormat('pt-BR', {minimumFractionDigits:0}).format(n);
+
+function badgeRisco(risco) {
+  const map = {'Sem Risco':'sem-risco','Baixo':'baixo','Moderado':'moderado','Alto':'baixo','Crítico':'critico'};
+  return `<span class="badge-custom badge-${map[risco]||'medio'}">${risco}</span>`;
+}
+function badgeFaixa(faixa) {
+  const map = {'Muito Alto':'muito-alto','Alto':'alto','Médio':'medio','Baixo':'baixo','Muito Baixo':'muito-baixo'};
+  return `<span class="badge-custom badge-${map[faixa]||'medio'}">${faixa}</span>`;
+}
+function badgeEngajamento(eng) {
+  const map = {'Muito Alto':'muito-alto','Alto':'alto','Médio':'medio','Baixo':'baixo','Cancelado':'cancelado'};
+  return `<span class="badge-custom badge-${map[eng]||'medio'}">${eng}</span>`;
+}
+function badgeStatus(status) {
+  const map = {'Ativo':'ativo','Ativa':'ativo','Rascunho':'rascunho','Agendada':'agendada','Pausada':'pausada','Encerrada':'encerrada','Inativo':'critico'};
+  return `<span class="badge-custom badge-${map[status]||'rascunho'}">${status}</span>`;
+}
+
+const CHART_COLORS = ['#7c3aed','#3b82f6','#10b981','#f59e0b','#ef4444','#f97316','#9f67ff'];
+
+function makeBarChart(canvasId, labels, values, colors) {
+  const ctx = document.getElementById(canvasId);
+  if (!ctx) return;
+  return new Chart(ctx, {
+    type: 'bar',
+    data: { labels, datasets: [{ data: values, backgroundColor: colors || CHART_COLORS, borderRadius: 4, borderSkipped: false }] },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { grid: { color: '#2a2d3e' }, ticks: { color: '#8b8fa8', font: { size: 11 } } },
+        y: { grid: { color: '#2a2d3e' }, ticks: { color: '#8b8fa8', font: { size: 11 } } }
+      }
+    }
+  });
+}
+
+function makeHBarChart(canvasId, labels, values, colors) {
+  const ctx = document.getElementById(canvasId);
+  if (!ctx) return;
+  return new Chart(ctx, {
+    type: 'bar',
+    data: { labels, datasets: [{ data: values, backgroundColor: colors || CHART_COLORS, borderRadius: 4 }] },
+    options: {
+      indexAxis: 'y', responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { grid: { color: '#2a2d3e' }, ticks: { color: '#8b8fa8', font: { size: 11 } } },
+        y: { grid: { display: false }, ticks: { color: '#8b8fa8', font: { size: 11 } } }
+      }
+    }
+  });
+}
+
+function makeDoughnut(canvasId, labels, values, colors) {
+  const ctx = document.getElementById(canvasId);
+  if (!ctx) return;
+  return new Chart(ctx, {
+    type: 'doughnut',
+    data: { labels, datasets: [{ data: values, backgroundColor: colors || CHART_COLORS, borderWidth: 0 }] },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { position: 'right', labels: { color: '#8b8fa8', font: { size: 11 }, boxWidth: 12 } } }
+    }
+  });
+}
+</script>
+
+{% block extra_scripts %}{% endblock %}
+</body>
+</html>

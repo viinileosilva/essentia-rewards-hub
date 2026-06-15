@@ -1,0 +1,164 @@
+{% extends "base.html" %}
+{% block title %}Dashboard — Essentia Rewards Hub{% endblock %}
+
+{% block content %}
+<div style="margin-bottom:1.5rem">
+  <h1 style="font-size:1.4rem;font-weight:700;margin:0">Dashboard Executivo</h1>
+  <p style="color:var(--text-muted);font-size:.83rem;margin:.3rem 0 0">Visão geral de todos, dados, engajamento e score da plataforma</p>
+</div>
+
+<!-- KPIs -->
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:1rem;margin-bottom:1.5rem">
+  <div class="kpi-card">
+    <div class="kpi-label">👥 Total de Usuários</div>
+    <div class="kpi-value" id="kpi-usuarios">—</div>
+  </div>
+  <div class="kpi-card">
+    <div class="kpi-label">💰 Saldo Médio de Pontos</div>
+    <div class="kpi-value purple" id="kpi-saldo">—</div>
+  </div>
+  <div class="kpi-card">
+    <div class="kpi-label">📊 Score Médio Geral</div>
+    <div class="kpi-value" id="kpi-score">—</div>
+  </div>
+  <div class="kpi-card">
+    <div class="kpi-label">⚠️ Taxa de Risco</div>
+    <div class="kpi-value red" id="kpi-risco">—</div>
+  </div>
+  <div class="kpi-card">
+    <div class="kpi-label">💎 Faturamento Total em Pontos</div>
+    <div class="kpi-value green" id="kpi-faturamento">—</div>
+  </div>
+</div>
+
+<!-- Charts row 1 -->
+<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:1rem;margin-bottom:1rem">
+  <div class="card-dark">
+    <div class="section-title">Distribuição de Score Comportamental</div>
+    <div class="chart-wrap"><canvas id="chart-score"></canvas></div>
+  </div>
+  <div class="card-dark">
+    <div class="section-title">Distribuição por Categoria de Risco</div>
+    <div class="chart-wrap"><canvas id="chart-risco"></canvas></div>
+  </div>
+  <div class="card-dark">
+    <div class="section-title">Níveis de Engajamento</div>
+    <div class="chart-wrap"><canvas id="chart-eng"></canvas></div>
+  </div>
+</div>
+
+<!-- Row 2: top performers + resumo segmentos + campanhas -->
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem">
+  <div class="card-dark">
+    <div class="section-title">Top Performers (10% Melhores)</div>
+    <table class="table-dark-custom">
+      <thead><tr><th>Nome</th><th>Score</th><th>Pontos</th><th>Plano</th></tr></thead>
+      <tbody id="tbody-top"></tbody>
+    </table>
+  </div>
+  <div style="display:grid;grid-template-rows:auto auto;gap:1rem">
+    <div class="card-dark">
+      <div class="section-title">Resumo de Segmentos</div>
+      <div style="display:flex;gap:2rem;align-items:center">
+        <div>
+          <div style="font-size:2rem;font-weight:700" id="seg-total">—</div>
+          <div style="font-size:.75rem;color:var(--text-muted)">Total de Segmentos</div>
+        </div>
+        <div>
+          <div style="font-size:2rem;font-weight:700;color:var(--accent-yellow)" id="seg-risco">—</div>
+          <div style="font-size:.75rem;color:var(--text-muted)">Segmentos em Risco</div>
+        </div>
+        <div>
+          <a href="/segmentos" style="color:var(--accent-purple-light);font-size:.8rem;text-decoration:none">Ver todos →</a>
+        </div>
+      </div>
+    </div>
+    <div class="card-dark">
+      <div class="section-title">Campanhas por Tipo</div>
+      <div id="camp-tipos" style="display:flex;flex-wrap:wrap;gap:.5rem"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Eventos recentes -->
+<div class="card-dark">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem">
+    <div class="section-title" style="margin:0">Eventos Comportamentais Recentes</div>
+    <a href="/usuarios" style="color:var(--accent-purple-light);font-size:.8rem;text-decoration:none">Ver todos →</a>
+  </div>
+  <table class="table-dark-custom">
+    <thead><tr><th>Usuário</th><th>Tipo</th><th>Descrição</th><th>Valor</th><th>Data</th></tr></thead>
+    <tbody id="tbody-eventos"></tbody>
+  </table>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+async function loadDashboard() {
+  // KPIs
+  const kpis = await fetch('/api/dashboard/kpis').then(r => r.json());
+  document.getElementById('kpi-usuarios').textContent = fmt(kpis.total_usuarios);
+  document.getElementById('kpi-saldo').textContent = fmt(kpis.saldo_medio);
+  document.getElementById('kpi-score').textContent = fmt(kpis.score_medio);
+  document.getElementById('kpi-risco').textContent = kpis.taxa_risco + '%';
+  document.getElementById('kpi-faturamento').textContent = fmtR(kpis.faturamento_total);
+
+  // Score chart
+  const sc = await fetch('/api/dashboard/distribuicao-score').then(r => r.json());
+  makeHBarChart('chart-score', sc.map(x=>x.faixa), sc.map(x=>x.total),
+    ['#10b981','#3b82f6','#f59e0b','#f97316','#ef4444']);
+
+  // Risco chart
+  const rc = await fetch('/api/dashboard/distribuicao-risco').then(r => r.json());
+  makeHBarChart('chart-risco', rc.map(x=>x.nivel), rc.map(x=>x.total),
+    ['#10b981','#3b82f6','#f59e0b','#f97316','#ef4444']);
+
+  // Engajamento chart
+  const ec = await fetch('/api/dashboard/distribuicao-engajamento').then(r => r.json());
+  makeHBarChart('chart-eng', ec.map(x=>x.nivel), ec.map(x=>x.total),
+    ['#10b981','#3b82f6','#f59e0b','#f97316','#9ca3af']);
+
+  // Top performers
+  const top = await fetch('/api/dashboard/top-performers').then(r => r.json());
+  const tbody = document.getElementById('tbody-top');
+  tbody.innerHTML = top.map(u => `
+    <tr>
+      <td>${u.nome}</td>
+      <td><strong>${fmt(u.score)}</strong></td>
+      <td>${fmtR(u.pontos)}</td>
+      <td>${u.plano}</td>
+    </tr>`).join('');
+
+  // Segmentos
+  const seg = await fetch('/api/dashboard/resumo-segmentos').then(r => r.json());
+  document.getElementById('seg-total').textContent = seg.total;
+  document.getElementById('seg-risco').textContent = seg.em_risco;
+
+  // Campanhas
+  const camp = await fetch('/api/dashboard/resumo-campanhas').then(r => r.json());
+  const icons = {Engajamento:'🎯',Retenção:'🤝',Recuperação:'🔄',Upgrade:'⬆️',Ativação:'⚡'};
+  document.getElementById('camp-tipos').innerHTML = camp.map(c => `
+    <div class="card-dark2" style="min-width:80px;text-align:center">
+      <div style="font-size:1.3rem">${icons[c.tipo]||'📋'}</div>
+      <div style="font-size:1.1rem;font-weight:700">${c.total}</div>
+      <div style="font-size:.7rem;color:var(--text-muted)">${c.tipo}</div>
+    </div>`).join('');
+
+  // Eventos
+  const evs = await fetch('/api/dashboard/eventos-recentes').then(r => r.json());
+  document.getElementById('tbody-eventos').innerHTML = evs.length
+    ? evs.map(e => `
+        <tr>
+          <td>${e.usuario}</td>
+          <td><span class="badge-custom badge-alto">${e.tipo}</span></td>
+          <td style="color:var(--text-muted)">${e.descricao||'—'}</td>
+          <td>${e.valor ? fmtR(e.valor) : '—'}</td>
+          <td style="color:var(--text-muted)">${e.data}</td>
+        </tr>`).join('')
+    : '<tr class="loading-row"><td colspan="5">Nenhum evento registrado</td></tr>';
+}
+
+loadDashboard();
+</script>
+{% endblock %}

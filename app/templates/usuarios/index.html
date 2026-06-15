@@ -1,0 +1,271 @@
+{% extends "base.html" %}
+{% block title %}Usuários & Score — Essentia Rewards Hub{% endblock %}
+
+{% block content %}
+<div style="margin-bottom:1.5rem">
+  <h1 style="font-size:1.4rem;font-weight:700;margin:0">Usuários & Score Comportamental</html>
+  <p style="color:var(--text-muted);font-size:.83rem;margin:.3rem 0 0">Consulte e analise o comportamento dos usuários da plataforma</p>
+</div>
+
+<!-- Filtros -->
+<div class="card-dark" style="margin-bottom:1rem">
+  <div style="display:flex;flex-wrap:wrap;gap:.75rem;align-items:center">
+    <input id="busca" class="input-dark" placeholder="Nome, ID ou e-mail..." style="flex:1;min-width:200px">
+    <select id="fil-faixa" class="input-dark">
+      <option value="">Todas as faixas</option>
+      <option>Muito Alto</option><option>Alto</option><option>Médio</option>
+      <option>Baixo</option><option>Muito Baixo</option>
+    </select>
+    <select id="fil-risco" class="input-dark">
+      <option value="">Todas as categorias</option>
+      <option>Sem Risco</option><option>Baixo</option><option>Moderado</option>
+      <option>Alto</option><option>Crítico</option>
+    </select>
+    <select id="fil-eng" class="input-dark">
+      <option value="">Todos os níveis</option>
+      <option>Muito Alto</option><option>Alto</option><option>Médio</option>
+      <option>Baixo</option><option>Cancelado</option>
+    </select>
+    <button class="btn-purple" onclick="loadUsuarios(1)">🔍 Buscar</button>
+    <button class="btn-ghost" onclick="limparFiltros()">✕ Limpar</button>
+    <button class="btn-purple" onclick="abrirModal()" style="margin-left:auto">+ Novo Usuário</button>
+  </div>
+</div>
+
+<!-- Stats -->
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem">
+  <div class="card-dark">
+    <div class="section-title">Distribuição de Scores</div>
+    <div class="chart-wrap"><canvas id="chart-dist"></canvas></div>
+  </div>
+  <div class="card-dark">
+    <div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:.5rem;margin-bottom:.8rem">
+      <div class="section-title" style="margin:0">Resumo de Scores</div>
+    </div>
+    <div style="display:flex;gap:2rem;flex-wrap:wrap">
+      <div><div style="font-size:1.6rem;font-weight:700" id="stat-media">—</div><div style="font-size:.75rem;color:var(--text-muted)">Score Médio</div></div>
+      <div><div style="font-size:1.6rem;font-weight:700;color:var(--accent-green)" id="stat-max">—</div><div style="font-size:.75rem;color:var(--text-muted)">Score Máximo</div></div>
+      <div><div style="font-size:1.6rem;font-weight:700;color:var(--accent-red)" id="stat-min">—</div><div style="font-size:.75rem;color:var(--text-muted)">Score Mínimo</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- Tabela -->
+<div class="card-dark">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem">
+    <div class="section-title" style="margin:0">Lista de Usuários — <span id="total-label" style="color:var(--text-muted)">carregando...</span></div>
+  </div>
+  <div style="overflow-x:auto">
+    <table class="table-dark-custom">
+      <thead>
+        <tr>
+          <th>Nome</th><th>E-mail</th><th>Score</th><th>Faixa</th>
+          <th>Risco</th><th>Engajamento</th><th>Pontos</th><th>Plano</th>
+          <th>Segmento</th><th>Ações</th>
+        </tr>
+      </thead>
+      <tbody id="tbody-users">
+        <tr class="loading-row"><td colspan="10">Carregando...</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-top:1rem">
+    <span style="font-size:.8rem;color:var(--text-muted)" id="pag-info"></span>
+    <div class="pagination-dark" id="paginacao"></div>
+  </div>
+</div>
+
+<!-- Modal Novo/Editar Usuário -->
+<div class="modal-dark" id="modal-usuario">
+  <div class="modal-box">
+    <div class="modal-title" id="modal-titulo">Novo Usuário</div>
+    <input type="hidden" id="edit-id">
+    <div style="display:grid;gap:.8rem">
+      <div>
+        <label style="font-size:.78rem;color:var(--text-muted)">Nome *</label>
+        <input id="f-nome" class="input-dark" style="width:100%;margin-top:.3rem" placeholder="Nome completo">
+      </div>
+      <div>
+        <label style="font-size:.78rem;color:var(--text-muted)">E-mail *</label>
+        <input id="f-email" class="input-dark" style="width:100%;margin-top:.3rem" placeholder="email@exemplo.com">
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:.8rem">
+        <div>
+          <label style="font-size:.78rem;color:var(--text-muted)">Score</label>
+          <input id="f-score" class="input-dark" type="number" style="width:100%;margin-top:.3rem" placeholder="0–1000" min="0" max="1000">
+        </div>
+        <div>
+          <label style="font-size:.78rem;color:var(--text-muted)">Pontos (R$)</label>
+          <input id="f-pontos" class="input-dark" type="number" style="width:100%;margin-top:.3rem" placeholder="0">
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:.8rem">
+        <div>
+          <label style="font-size:.78rem;color:var(--text-muted)">Faixa</label>
+          <select id="f-faixa" class="input-dark" style="width:100%;margin-top:.3rem">
+            <option>Muito Alto</option><option>Alto</option><option selected>Médio</option>
+            <option>Baixo</option><option>Muito Baixo</option>
+          </select>
+        </div>
+        <div>
+          <label style="font-size:.78rem;color:var(--text-muted)">Risco</label>
+          <select id="f-risco" class="input-dark" style="width:100%;margin-top:.3rem">
+            <option selected>Sem Risco</option><option>Baixo</option><option>Moderado</option>
+            <option>Alto</option><option>Crítico</option>
+          </select>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:.8rem">
+        <div>
+          <label style="font-size:.78rem;color:var(--text-muted)">Engajamento</label>
+          <select id="f-eng" class="input-dark" style="width:100%;margin-top:.3rem">
+            <option>Muito Alto</option><option>Alto</option><option selected>Médio</option>
+            <option>Baixo</option><option>Cancelado</option>
+          </select>
+        </div>
+        <div>
+          <label style="font-size:.78rem;color:var(--text-muted)">Plano</label>
+          <select id="f-plano" class="input-dark" style="width:100%;margin-top:.3rem">
+            <option selected>Essencial</option><option>Standard</option><option>Premium</option>
+          </select>
+        </div>
+      </div>
+      <div>
+        <label style="font-size:.78rem;color:var(--text-muted)">Tempo de Cliente (meses)</label>
+        <input id="f-tempo" class="input-dark" type="number" style="width:100%;margin-top:.3rem" placeholder="0" min="0">
+      </div>
+    </div>
+    <div style="display:flex;gap:.75rem;margin-top:1.5rem;justify-content:flex-end">
+      <button class="btn-ghost" onclick="fecharModal()">Cancelar</button>
+      <button class="btn-purple" onclick="salvarUsuario()">Salvar</button>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+let paginaAtual = 1;
+
+async function loadUsuarios(page = 1) {
+  paginaAtual = page;
+  const q = document.getElementById('busca').value;
+  const faixa = document.getElementById('fil-faixa').value;
+  const risco = document.getElementById('fil-risco').value;
+  const eng = document.getElementById('fil-eng').value;
+  const params = new URLSearchParams({q, faixa, risco, engajamento: eng, page, per_page: 15});
+  const data = await fetch('/api/usuarios?' + params).then(r => r.json());
+
+  document.getElementById('total-label').textContent = fmt(data.total) + ' usuários';
+  document.getElementById('pag-info').textContent = `Página ${data.page} de ${data.pages}`;
+
+  const tbody = document.getElementById('tbody-users');
+  tbody.innerHTML = data.data.length ? data.data.map(u => `
+    <tr>
+      <td><strong>${u.nome}</strong></td>
+      <td style="color:var(--text-muted)">${u.email}</td>
+      <td><strong>${fmt(u.score)}</strong></td>
+      <td>${badgeFaixa(u.faixa)}</td>
+      <td>${badgeRisco(u.risco)}</td>
+      <td>${badgeEngajamento(u.engajamento)}</td>
+      <td>R$ ${fmt(u.pontos)}</td>
+      <td>${u.plano}</td>
+      <td>${u.segmento}</td>
+      <td>
+        <button class="btn-icon" onclick="editarUsuario(${u.id})" title="Editar">✏️</button>
+        <button class="btn-icon" onclick="deletarUsuario(${u.id},'${u.nome}')" title="Excluir">🗑️</button>
+      </td>
+    </tr>`).join('')
+    : '<tr class="loading-row"><td colspan="10">Nenhum usuário encontrado</td></tr>';
+
+  // Paginação
+  const pag = document.getElementById('paginacao');
+  pag.innerHTML = '';
+  if (data.pages > 1) {
+    const addBtn = (label, pg, disabled) => {
+      const btn = document.createElement('button');
+      btn.className = 'page-btn' + (pg === paginaAtual ? ' active' : '');
+      btn.textContent = label;
+      btn.disabled = disabled;
+      btn.onclick = () => loadUsuarios(pg);
+      pag.appendChild(btn);
+    };
+    addBtn('‹', page - 1, page === 1);
+    for (let i = Math.max(1, page-2); i <= Math.min(data.pages, page+2); i++) addBtn(i, i, false);
+    addBtn('›', page + 1, page === data.pages);
+  }
+}
+
+async function loadStats() {
+  const s = await fetch('/api/usuarios/stats').then(r => r.json());
+  document.getElementById('stat-media').textContent = fmt(s.score_medio);
+  document.getElementById('stat-max').textContent = fmt(s.score_max);
+  document.getElementById('stat-min').textContent = fmt(s.score_min);
+  makeBarChart('chart-dist', s.distribuicao.map(x=>x.faixa), s.distribuicao.map(x=>x.total),
+    ['#10b981','#3b82f6','#f59e0b','#f97316','#ef4444']);
+}
+
+function limparFiltros() {
+  document.getElementById('busca').value = '';
+  document.getElementById('fil-faixa').value = '';
+  document.getElementById('fil-risco').value = '';
+  document.getElementById('fil-eng').value = '';
+  loadUsuarios(1);
+}
+
+function abrirModal(dados) {
+  document.getElementById('modal-titulo').textContent = dados ? 'Editar Usuário' : 'Novo Usuário';
+  document.getElementById('edit-id').value = dados?.id || '';
+  document.getElementById('f-nome').value = dados?.nome || '';
+  document.getElementById('f-email').value = dados?.email || '';
+  document.getElementById('f-score').value = dados?.score || '';
+  document.getElementById('f-pontos').value = dados?.pontos || '';
+  document.getElementById('f-faixa').value = dados?.faixa || 'Médio';
+  document.getElementById('f-risco').value = dados?.risco || 'Sem Risco';
+  document.getElementById('f-eng').value = dados?.engajamento || 'Médio';
+  document.getElementById('f-plano').value = dados?.plano || 'Essencial';
+  document.getElementById('f-tempo').value = dados?.tempo_cliente || '';
+  document.getElementById('modal-usuario').classList.add('open');
+}
+function fecharModal() { document.getElementById('modal-usuario').classList.remove('open'); }
+
+async function editarUsuario(id) {
+  const u = await fetch('/api/usuarios/' + id).then(r => r.json());
+  abrirModal(u);
+}
+
+async function salvarUsuario() {
+  const id = document.getElementById('edit-id').value;
+  const body = {
+    nome: document.getElementById('f-nome').value,
+    email: document.getElementById('f-email').value,
+    score: parseInt(document.getElementById('f-score').value) || 0,
+    pontos: parseFloat(document.getElementById('f-pontos').value) || 0,
+    faixa: document.getElementById('f-faixa').value,
+    risco: document.getElementById('f-risco').value,
+    engajamento: document.getElementById('f-eng').value,
+    plano: document.getElementById('f-plano').value,
+    tempo_cliente: parseInt(document.getElementById('f-tempo').value) || 0,
+  };
+  if (!body.nome || !body.email) { alert('Nome e e-mail são obrigatórios'); return; }
+  const url = id ? `/api/usuarios/${id}` : '/api/usuarios';
+  const method = id ? 'PUT' : 'POST';
+  await fetch(url, { method, headers: {'Content-Type':'application/json'}, body: JSON.stringify(body) });
+  fecharModal();
+  loadUsuarios(paginaAtual);
+  loadStats();
+}
+
+async function deletarUsuario(id, nome) {
+  if (!confirm(`Excluir ${nome}?`)) return;
+  await fetch('/api/usuarios/' + id, { method: 'DELETE' });
+  loadUsuarios(paginaAtual);
+  loadStats();
+}
+
+document.getElementById('busca').addEventListener('keydown', e => { if (e.key==='Enter') loadUsuarios(1); });
+
+loadUsuarios(1);
+loadStats();
+</script>
+{% endblock %}

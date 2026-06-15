@@ -1,0 +1,13 @@
+services:
+  - type: web
+    name: essentia-rewards-hub
+    runtime: python
+    buildCommand: pip install -r requirements.txt && python seed.py
+    startCommand: gunicorn run:app
+    envVars:
+      - key: SECRET_KEY
+        generateValue: true
+      - key: TURSO_DATABASE_URL
+        sync: false
+      - key: TURSO_AUTH_TOKEN
+        sync: false
